@@ -1,6 +1,6 @@
 # PDDL-RL Robot
 
-A Python package that integrates PDDL (Planning Domain Definition Language) task planning with reinforcement learning for robotic control and execution.
+A Python package that integrates PDDL (Planning Domain Definition Language) task planning with reinforcement learning for robotic control and execution. This is a coursework project for CS5446 AI Planning and Decision Making.
 
 ## Overview
 
@@ -39,13 +39,9 @@ Please refer to the `requirements.txt` file for a list of all dependencies.
 ### Basic Usage
 
 This section will be made available soon.
-
-### Examples
-
-See the `examples/` directory for more detailed usage examples:
-
-- Environment rendering
-- PDDL planning examples (later)
+```bash
+python3 main.py # For final integration
+```
 
 ## Project Structure
 
@@ -58,7 +54,6 @@ pddl_rl_robot/
 │   ├── pddl/               # PDDL parsing and solving
 │   ├── rl/                 # RL policy management
 │   └── simulation/         # Simulation of environments
-├── tests/                  # Unit and integration tests
 ├── requirements.txt        # Dependencies
 └── README.md               # This file
 ├── main.py                 # Main entry point
@@ -70,8 +65,3 @@ pddl_rl_robot/
 - Edward Xiao
 - David Lai
 - Toh Hoon Chew
-
-## Contributing
-
-This is a master coursework project. Contributions are not expected.
-

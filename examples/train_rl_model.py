@@ -7,7 +7,6 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
 from datetime import datetime
 
-# NOTE: this class is just a placeholder, please modify the reward based on some observations that are useful for reaching.
 class ReachTrainingEnv(TwoPegOneRoundNut):
     """
     Modified version of task - place one round nut with two pegs in the environment.
