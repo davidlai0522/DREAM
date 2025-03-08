@@ -1,0 +1,13 @@
+numpy
+scipy
+matplotlib
+opencv-python
+pandas
+robosuite
+mujoco
+gym
+pyaml
+h5py
+pybullet
+termcolor
+stable-baselines3[extra]

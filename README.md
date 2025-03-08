@@ -1,0 +1,77 @@
+# PDDL-RL Robot
+
+A Python package that integrates PDDL (Planning Domain Definition Language) task planning with reinforcement learning for robotic control and execution.
+
+## Overview
+
+This package provides a framework for:
+1. Defining and solving PDDL planning problems for robotic tasks
+2. Translating high-level PDDL plans into executable robot actions
+3. Using reinforcement learning policies to execute these actions in simulation or on real robots
+4. Monitoring execution and adapting to environmental changes
+
+## Features
+
+- **PDDL Planning**: Solve planning problems using various search algorithms
+- **RL Policy Integration**: Execute plans using pre-trained reinforcement learning policies
+- **Modular Architecture**: Easily extend with new planners, policies, or robot interfaces
+
+## Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/pddl_rl_robot.git
+cd pddl_rl_robot
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install the package in development mode
+pip install -e .
+```
+
+## Dependencies
+
+Please refer to the `requirements.txt` file for a list of all dependencies.
+
+## Usage
+
+### Basic Usage
+
+This section will be made available soon.
+
+### Examples
+
+See the `examples/` directory for more detailed usage examples:
+
+- Environment rendering
+- PDDL planning examples (later)
+
+## Project Structure
+
+```
+pddl_rl_robot/
+├── config/                 # Configuration files
+│   └── project_config.yaml # Main configuration
+├── examples/               # Example scripts
+├── pddl_rl_robot/          # Main package
+│   ├── pddl/               # PDDL parsing and solving
+│   ├── rl/                 # RL policy management
+│   └── simulation/         # Simulation of environments
+├── tests/                  # Unit and integration tests
+├── requirements.txt        # Dependencies
+└── README.md               # This file
+├── main.py                 # Main entry point
+```
+
+## Maintainer
+
+- Joseph Phang
+- Edward Xiao
+- David Lai
+- Toh Hoon Chew
+
+## Contributing
+
+This is a master coursework project. Contributions are not expected.
+

@@ -1,0 +1,28 @@
+# These cnofigurations are tentatively set. They will be updated once the individual modules are tested and validated.
+pddl:
+  domain_file: domain.pddl
+  problem_file: problem.pddl
+  
+reinforcement_learning: 
+  agents: ["reach","pick","lift", "place"]
+
+  reach: 
+    model: model.zip
+    algorithm: ppo
+    environment: reach_env
+
+  pick:
+    model: model.zip
+    algorithm: ppo
+    environment: pick_env
+
+  lift:
+    model: model.zip
+    algorithm: dqn
+    environment: lift_env
+
+  place:
+    model: model.zip
+    algorithm: dqn
+    environment: place_env
+
