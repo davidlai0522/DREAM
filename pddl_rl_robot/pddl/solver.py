@@ -1,4 +1,6 @@
 import random
+from unified_planning.io import PDDLReader, PDDLWriter
+from unified_planning.shortcuts import OneshotPlanner
 
 class PDDLSolver:
     def __init__(self, domain_file, problem_file):
@@ -15,4 +17,12 @@ class PDDLSolver:
         return actions
 
     def solve(self):
-        raise NotImplementedError
+    
+        reader = PDDLReader()
+        problem = reader.parse_problem(self.domain_file, self.problem_file)
+        
+        # Solve the problem
+        with OneshotPlanner(name = "fast-downward") as planner:
+            result = planner.solve(problem)
+        
+        return result.plan.actions
