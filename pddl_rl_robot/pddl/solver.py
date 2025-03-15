@@ -24,5 +24,6 @@ class PDDLSolver:
         # Solve the problem
         with OneshotPlanner(name = "fast-downward") as planner:
             result = planner.solve(problem)
+        actions = [str(action) for action in result.plan.actions]
         
-        return result.plan.actions
+        return actions
