@@ -1,10 +1,14 @@
 from pddl_rl_robot.simulation.peg_and_hole_base_env import NutAssembly, PegsArena
-from robosuite.utils.placement_samplers import SequentialCompositeSampler, UniformRandomSampler
+from robosuite.utils.placement_samplers import (
+    SequentialCompositeSampler,
+    UniformRandomSampler,
+)
 from robosuite.environments.manipulation.manipulation_env import ManipulationEnv
 from robosuite.models.tasks import ManipulationTask
-from robosuite.wrappers import GymWrapper
+from robosuite.models.base import MujocoModel
 from robosuite.models.objects import RoundNutObject
 import numpy as np
+
 
 class TwoPegOneRoundNut(NutAssembly):
     """
@@ -12,7 +16,9 @@ class TwoPegOneRoundNut(NutAssembly):
     """
 
     def __init__(self, **kwargs):
-        assert "single_object_mode" not in kwargs and "nut_type" not in kwargs, "invalid set of arguments"
+        assert (
+            "single_object_mode" not in kwargs and "nut_type" not in kwargs
+        ), "invalid set of arguments"
         super().__init__(single_object_mode=2, nut_type="round", **kwargs)
 
     def _load_model(self):
@@ -22,7 +28,9 @@ class TwoPegOneRoundNut(NutAssembly):
         ManipulationEnv._load_model(self)
 
         # Adjust base pose accordingly
-        xpos = self.robots[0].robot_model.base_xpos_offset["table"](self.table_full_size[0])
+        xpos = self.robots[0].robot_model.base_xpos_offset["table"](
+            self.table_full_size[0]
+        )
         self.robots[0].robot_model.set_base_xpos(xpos)
 
         # load model for table top workspace
@@ -41,8 +49,12 @@ class TwoPegOneRoundNut(NutAssembly):
 
         # Create default (SequentialCompositeSampler) sampler if it has not already been specified
         if self.placement_initializer is None:
-            self.placement_initializer = SequentialCompositeSampler(name="ObjectSampler")
-            for nut_name, default_y_range in zip(nut_names, ([-0.11, -0.09],)):  # Only one range for the round nut
+            self.placement_initializer = SequentialCompositeSampler(
+                name="ObjectSampler"
+            )
+            for nut_name, default_y_range in zip(
+                nut_names, ([-0.11, -0.09],)
+            ):  # Only one range for the round nut
                 self.placement_initializer.append_sampler(
                     sampler=UniformRandomSampler(
                         name=f"{nut_name}Sampler",
@@ -66,7 +78,9 @@ class TwoPegOneRoundNut(NutAssembly):
         # Add this nut to the placement initializer
         if isinstance(self.placement_initializer, SequentialCompositeSampler):
             # Add the round nut to the sampler
-            self.placement_initializer.add_objects_to_sampler(sampler_name="RoundNutSampler", mujoco_objects=nut)
+            self.placement_initializer.add_objects_to_sampler(
+                sampler_name="RoundNutSampler", mujoco_objects=nut
+            )
         else:
             # This is assumed to be a flat sampler, so we just add the nut to this sampler
             self.placement_initializer.add_objects(nut)
@@ -92,7 +106,10 @@ class TwoPegOneRoundNut(NutAssembly):
 
             # Loop through all objects and reset their positions
             for obj_pos, obj_quat, obj in object_placements.values():
-                self.sim.data.set_joint_qpos(obj.joints[0], np.concatenate([np.array(obj_pos), np.array(obj_quat)]))
+                self.sim.data.set_joint_qpos(
+                    obj.joints[0],
+                    np.concatenate([np.array(obj_pos), np.array(obj_quat)]),
+                )
 
         # Set the obj_to_use to be our single round nut
         self.obj_to_use = "RoundNut"
@@ -108,10 +125,70 @@ class TwoPegOneRoundNut(NutAssembly):
                 self._observables[name].set_active(i == self.nut_id)
 
     def reward(self, action=None):
+        """
+        The reward function of the environment.
+
+        Args:
+            action (np.ndarray, optional): The action taken by the agent. Defaults to None.
+
+        Returns:
+            int: The reward
+        """
         return 0
 
+    # Developer may want to override this in their child class
     def _check_success(self):
         """
         Always returns False to prevent the environment from terminating.
         """
         return False
+
+    def get_available_body_names(self):
+        return self.sim.model.body_names
+
+    def get_nut_pos(self, name: str = "RoundNut_main"):
+        nut_id = self.sim.model.body_name2id(name)
+        nut_pos = self.sim.data.body_xpos[nut_id]
+        return nut_pos
+
+    def get_nut_ori(self, name: str = "RoundNut_main"):
+        nut_id = self.sim.model.body_name2id(name)
+        nut_ori = self.sim.data.body_xquat[nut_id]
+        return nut_ori
+
+    def get_gripper_tip_pos(self, name: str = "gripper0_right_finger_joint1_tip"):
+        tip_id = self.sim.model.body_name2id(name)
+        tip_pos = self.sim.data.body_xpos[tip_id]
+        return tip_pos
+
+    def get_object_position(self, target, target_type):
+        if isinstance(target, MujocoModel):
+            return self.sim.data.get_body_xpos(target.root_body)
+        elif target_type == "body":
+            return self.sim.data.get_body_xpos(target)
+        elif target_type == "site":
+            return self.sim.data.get_site_xpos(target)
+        else:
+            return self.sim.data.get_geom_xpos(target)
+
+    def get_distance_from_gripper_to_nut_handle(self, gripper=None, nut=None) -> float:
+        if gripper is None:
+            gripper = self.robots[0].gripper
+        if nut is None:
+            nut = self.nuts[0]
+        return self._gripper_to_target(
+            gripper=gripper,
+            target=nut.important_sites["handle"],
+            target_type="site",
+            return_distance=True,
+        )
+
+    def check_grasp(self, gripper=None, nut=None):
+        if gripper is None:
+            gripper = self.robots[0].gripper
+        if nut is None:
+            nut = self.nuts[0]
+        return self._check_grasp(
+            gripper=gripper,
+            object_geoms=nut.contact_geoms,
+        )
