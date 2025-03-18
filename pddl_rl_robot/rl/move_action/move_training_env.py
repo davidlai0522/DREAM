@@ -94,6 +94,7 @@ class MoveTrainingEnv(TwoPegOneRoundNut):
                 - (float) Height of table
                 - (ndarray) xyz position of nut
                 - (ndarray) xyz position of target peg
+                - (ndarray) xyz position of gripper tip
 
         """
         
@@ -108,8 +109,11 @@ class MoveTrainingEnv(TwoPegOneRoundNut):
         # xyz position of nut and target peg
         nut_xpos = np.array(self.sim.data.body_xpos[nut_id])[:3]
         target_peg_xpos = np.array(self.sim.data.body_xpos[self.target_peg_id])[:3]
+
+        # tip position
+        tip_xpos = self.get_gripper_tip_pos()
         
-        return grasped, table_height, nut_xpos, target_peg_xpos
+        return grasped, table_height, nut_xpos, target_peg_xpos, tip_xpos
     
     
     # Override the reward function (please design it such that it favors reaching the goal)
@@ -127,16 +131,16 @@ class MoveTrainingEnv(TwoPegOneRoundNut):
 
         """
 
-        grasped, table_height, nut_xpos, target_peg_xpos = self._get_task_info()
+        grasped, table_height, nut_xpos, target_peg_xpos, tip_xpos = self._get_task_info()
         
         nut_height = nut_xpos[2]
         target_peg_height = target_peg_xpos[2]
 
         if nut_height - target_peg_height > self.height_threshold:
             reward = 1.0
-            # Add in up to 0.25 based on distance between handle and gripper
+            # Add in up to 0.5 based on distance between handle and gripper
             dist = np.linalg.norm(nut_xpos[:2] - target_peg_xpos[:2])
-            reaching_reward = 0.25 * (1 - np.tanh(1.0 * dist))
+            reaching_reward = 0.5 * (1 - np.tanh(1.0 * dist))
             reward += reaching_reward
 
             # Add in up to 0.25 based on the angle of the nut
@@ -149,10 +153,18 @@ class MoveTrainingEnv(TwoPegOneRoundNut):
             if grasped:
                 reward = 0.5
             else:
+                reward= 0.0
+
                 # encourage arm0 to reach for the handle
-                dist = np.linalg.norm(self.get_distance_from_gripper_to_nut_handle())
+                dist = self.get_distance_from_gripper_to_nut_handle()
                 reaching_reward = 0.25 * (1 - np.tanh(1.0 * dist))
-                reward = reaching_reward
+                reward += reaching_reward
+
+                # Add orientation reward (if gripper approaching from above)
+                gripper_to_nut = nut_xpos - tip_xpos
+                gripper_to_nut = gripper_to_nut / np.linalg.norm(gripper_to_nut)
+                vertical_approach = np.dot(gripper_to_nut, np.array([0, 0, 1]))
+                reward += 0.5 * np.tanh(1.0 * vertical_approach)  # Reward vertical approach
         
         
         return reward
@@ -191,7 +203,7 @@ if __name__ == "__main__":
     env = MoveTrainingEnv(
         robots="Panda",  # Use Panda robot
         gripper_types="default",
-        has_renderer=True,  # Enable visualization
+        has_renderer=False,  # Enable visualization
         has_offscreen_renderer=False,  # Disable offscreen rendering
         use_camera_obs=False,  # Don't use camera observations
         reward_shaping=False,  # Enable reward shaping
