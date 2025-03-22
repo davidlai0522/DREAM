@@ -8,7 +8,7 @@ from robosuite.models.tasks import ManipulationTask
 from robosuite.models.base import MujocoModel
 from robosuite.models.objects import RoundNutObject
 import numpy as np
-
+from pddl_rl_robot.utils.utils import quat2euler
 
 class TwoPegOneRoundNut(NutAssembly):
     """
@@ -45,45 +45,47 @@ class TwoPegOneRoundNut(NutAssembly):
 
         # define nuts - only one round nut
         self.nuts = []
-        nut_names = ("RoundNut",)  # Only include round nut
+        nut_names = ("RoundNut",)  # Include both nuts
+        # nut_names = ("RoundNut","InvisibleNut")  # Include both nuts
 
         # Create default (SequentialCompositeSampler) sampler if it has not already been specified
         if self.placement_initializer is None:
             self.placement_initializer = SequentialCompositeSampler(
                 name="ObjectSampler"
             )
-            for nut_name, default_y_range in zip(
-                nut_names, ([-0.11, -0.09],)
-            ):  # Only one range for the round nut
-                self.placement_initializer.append_sampler(
-                    sampler=UniformRandomSampler(
-                        name=f"{nut_name}Sampler",
+            # Create samplers for both nuts with very different placement areas
+            # RoundNut on the left side
+            self.placement_initializer.append_sampler(
+                sampler=UniformRandomSampler(
+                    name="RoundNutSampler",
                         x_range=[0.07, 0.09],
-                        y_range=default_y_range,
+                        y_range=[-0.11, -0.09],
                         rotation=[3.0, 3.28],
-                        rotation_axis="z",
-                        ensure_object_boundary_in_range=False,
-                        ensure_valid_placement=True,
-                        reference_pos=self.table_offset,
-                        z_offset=0.02,
-                    )
+                    rotation_axis="z",
+                    ensure_object_boundary_in_range=False,
+                    ensure_valid_placement=True,
+                    reference_pos=self.table_offset,
+                    z_offset=0.02,
                 )
+            )
         # Reset sampler before adding any new samplers / objects
         self.placement_initializer.reset()
 
-        # Only create the round nut
-        nut = RoundNutObject(name="RoundNut")
-        self.nuts.append(nut)
-
-        # Add this nut to the placement initializer
-        if isinstance(self.placement_initializer, SequentialCompositeSampler):
-            # Add the round nut to the sampler
-            self.placement_initializer.add_objects_to_sampler(
-                sampler_name="RoundNutSampler", mujoco_objects=nut
+        for i, (nut_cls, nut_name) in enumerate(
+            zip(
+                (RoundNutObject,),
+                nut_names,
             )
-        else:
-            # This is assumed to be a flat sampler, so we just add the nut to this sampler
-            self.placement_initializer.add_objects(nut)
+        ):
+            nut = nut_cls(name=nut_name)
+            self.nuts.append(nut)
+            # Add this nut to the placement initializer
+            if isinstance(self.placement_initializer, SequentialCompositeSampler):
+                # assumes we have two samplers so we add nuts to them
+                self.placement_initializer.add_objects_to_sampler(sampler_name=f"{nut_name}Sampler", mujoco_objects=nut)
+            else:
+                # This is assumed to be a flat sampler, so we just add all nuts to this sampler
+                self.placement_initializer.add_objects(nut)
 
         # task includes arena, robot, and objects of interest
         self.model = ManipulationTask(
@@ -151,15 +153,30 @@ class TwoPegOneRoundNut(NutAssembly):
         nut_pos = self.sim.data.body_xpos[nut_id]
         return nut_pos
 
-    def get_nut_ori(self, name: str = "RoundNut_main"):
+    def get_nut_ori(self, name: str = "RoundNut_main", representation: str = "quat", use_degree: bool = False):
         nut_id = self.sim.model.body_name2id(name)
         nut_ori = self.sim.data.body_xquat[nut_id]
-        return nut_ori
+        if representation == "quat":
+            return nut_ori
+        elif representation == "euler":
+            return quat2euler(nut_ori, use_degree)
+        else:
+            raise ValueError(f"Invalid representation: {representation}")
 
     def get_gripper_tip_pos(self, name: str = "gripper0_right_finger_joint1_tip"):
         tip_id = self.sim.model.body_name2id(name)
         tip_pos = self.sim.data.body_xpos[tip_id]
         return tip_pos
+
+    def get_gripper_tip_ori(self, name: str = "gripper0_right_finger_joint1_tip", representation: str = "quat", use_degree: bool = False):
+        tip_id = self.sim.model.body_name2id(name)
+        tip_ori = self.sim.data.body_xquat[tip_id]
+        if representation == "quat":
+            return tip_ori
+        elif representation == "euler":
+            return quat2euler(tip_ori, use_degree)
+        else:
+            raise ValueError(f"Invalid representation: {representation}")
 
     def get_object_position(self, target, target_type):
         if isinstance(target, MujocoModel):

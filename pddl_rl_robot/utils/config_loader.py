@@ -54,3 +54,12 @@ class ConfigLoader:
             The RL configuration.
         """
         return self.get("reinforcement_learning", {})
+    
+    def get_deterministic_config(self):
+        """
+        Get the deterministic configuration from the YAML file.
+
+        Returns:
+            The deterministic configuration.
+        """
+        return self.get("deterministic", {})
