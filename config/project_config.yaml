@@ -1,7 +1,7 @@
 # These cnofigurations are tentatively set. They will be updated once the individual modules are tested and validated.
 pddl:
   domain_file: domain.pddl
-  problem_file: problem.pddl
+  problem_file: problem_base.pddl
   
 reinforcement_learning: 
   agents: ["reach","pick","lift", "place"]
