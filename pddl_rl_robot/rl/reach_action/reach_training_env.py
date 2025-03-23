@@ -6,6 +6,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
 from datetime import datetime
+import numpy as np
 
 # NOTE: this class is just a placeholder, please modify the reward based on some observations that are useful for reaching.
 class ReachTrainingEnv(TwoPegOneRoundNut):
@@ -24,6 +25,7 @@ class ReachTrainingEnv(TwoPegOneRoundNut):
         # """
         nut_id = self.sim.model.body_name2id('RoundNut_main')
         nut_pos = self.sim.data.body_xpos[nut_id]
+        handle_pos = self.sim.data.get_site_xpos('RoundNut_handle_site')
         
         tip1_id = self.sim.model.body_name2id('gripper0_right_finger_joint1_tip')
         # tip1_id = self.sim.model.body_name2id( 'gripper0_right_leftfinger') #seems to be the rectangular thingy; failed
@@ -38,7 +40,7 @@ class ReachTrainingEnv(TwoPegOneRoundNut):
         # ---- REACHING REWARD COMPONENT ----        
         # Base reward is inverse to distance (higher as gripper gets closer)
         # Using a scaled inverse distance function for smooth gradient
-        dist_gripper_to_nut = np.linalg.norm(tip_pos - nut_pos)
+        dist_gripper_to_nut = np.linalg.norm(tip_pos - handle_pos)
         reach_reward = 1.0 / (1.0 + 5.0 * dist_gripper_to_nut)
         
         # Bonus rewards for getting very close
@@ -53,7 +55,7 @@ class ReachTrainingEnv(TwoPegOneRoundNut):
 
         # ---- ORIENTATION REWARD COMPONENT ----        
         # Add orientation reward (if gripper approaching from above)
-        gripper_to_nut = nut_pos - tip_pos
+        gripper_to_nut = handle_pos - tip_pos
         gripper_to_nut = gripper_to_nut / np.linalg.norm(gripper_to_nut)
         vertical_approach = np.dot(gripper_to_nut, np.array([0, 0, 1]))
         ori_reward = 0.5 * max(0, vertical_approach)  # Reward vertical approach
@@ -78,7 +80,7 @@ if __name__ == "__main__":
     env = ReachTrainingEnv(
         robots="Panda",  # Use Panda robot
         gripper_types="default",
-        has_renderer=True,  # Enable visualization
+        has_renderer=False,  # Enable visualization
         has_offscreen_renderer=False,  # Disable offscreen rendering
         use_camera_obs=False,  # Don't use camera observations
         reward_shaping=False,  # Enable reward shaping
@@ -107,5 +109,6 @@ if __name__ == "__main__":
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
     model.save(f"{os.path.dirname(os.path.abspath(__file__))}/{name_prefix}_{current_time}_{str(total_timesteps)}")
     env.close()
+    print(f"Training completed. Model saved to {os.path.dirname(os.path.abspath(__file__))}/{name_prefix}_{current_time}_{str(total_timesteps)}")
 
     exit()

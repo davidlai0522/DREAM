@@ -3,26 +3,41 @@ pddl:
   domain_file: domain.pddl
   problem_file: problem_base.pddl
   
-reinforcement_learning: 
-  agents: ["reach","pick","lift", "place"]
+deterministic:
+  actions: ["clasp-disk"]
 
-  reach: 
+  clasp-disk:
+    class: GraspAction
+    max_step: 50
+
+  lift-disk-from-peg:
+    class: LiftAction
+
+reinforcement_learning: 
+  agents: ["reach-toward-disk-on-peg", "lift-disk-from-peg"]
+
+  move:
     model: model.zip
+    algorithm: ppo
+    environment: move_env
+    
+  reach-toward-disk-on-peg:
+    model: pddl_rl_robot/rl/reach_action/ppo_panda_reach_20250322_155741_88888.zip
     algorithm: ppo
     environment: reach_env
+    max_step: 500
 
-  pick:
-    model: model.zip
+  place-disk-on-empty-peg:
+    model: pddl_rl_robot/rl/place_action/place_train_model.zip
     algorithm: ppo
-    environment: pick_env
-
-  lift:
-    model: model.zip
-    algorithm: dqn
+    environment: place_env
+    
+  lift-disk-from-peg:
+    model: pddl_rl_robot/rl/lift_action/ppo_panda_lift_20250323_004539_88888.zip
+    algorithm: ppo
     environment: lift_env
-
+    
   place:
     model: model.zip
-    algorithm: dqn
+    algorithm: ppo
     environment: place_env
-
