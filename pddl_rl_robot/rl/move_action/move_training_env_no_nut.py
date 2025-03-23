@@ -29,6 +29,7 @@ class MoveTrainingEnv_no_nut(TwoPegOneRoundNut):
         
         self.height_threshold = [0.07, 0.1]
         self.nut_angle_threshold = np.pi/10
+        
         self.nut_to_target_peg_xy_dist_threshold = 0.01
     
     @property
@@ -245,10 +246,12 @@ class MoveTrainingEnv_no_nut(TwoPegOneRoundNut):
         dist_to_target_peg = np.linalg.norm(gripper_to_target_vec)
         reaching_reward = 4 * (1 - np.tanh(5.0 * dist_to_target_peg))
 
+
         # height 
         height_reward = 0
         curr_height = self._eef0_xpos[2]
         lower_threshold, higher_threshold = target_peg_xpos[2] + self.height_threshold[0], target_peg_xpos[2] + self.height_threshold[1]
+
         if curr_height >= lower_threshold and curr_height <= higher_threshold:
             # higher than lower-threshold, prevent from getting over the higher threshold
             height_reward = 1 + np.tanh(10 * abs((lower_threshold + higher_threshold)/2 - curr_height))
@@ -257,9 +260,11 @@ class MoveTrainingEnv_no_nut(TwoPegOneRoundNut):
         else:
             height_reward = 1 - np.tanh(10 * (curr_height - higher_threshold))
 
+
     
         # orientation
         gripper_angle = self._gripper_angle()
+
         ori_reward = 2.0 * np.tanh(gripper_angle - 0.8 * np.pi)
 
         # Small penalty for large actions to encourage smooth motion
