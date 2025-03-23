@@ -68,7 +68,7 @@ def main():
     task_planner = PDDLSolver(domain_file=domain_path, problem_file=problem_path)
 
     print(colored("Solving the PDDL problem...", "cyan", attrs=["bold"]))
-    plan = task_planner.mock_solve()
+    plan = task_planner.solve()
     print(colored(f"Plan: {plan}", "green"))
 
     # ====================================== Exxecute the plan ======================================

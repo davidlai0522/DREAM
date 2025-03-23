@@ -114,6 +114,16 @@ class RobotSimulator():
             self.gym_env.render()
         except Exception as e:
             print(f"Error in render: {e}")
+    
+    def set_joint_pose(self, name, pose):
+        """
+        Set the pose of a joint.
+        
+        Args:
+            name: The name of the joint
+            pose: The pose to set
+        """
+        self.env.sim.data.set_joint_qpos(name, pose)
 
     def get_random_action(self):
         """
