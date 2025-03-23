@@ -15,7 +15,8 @@ class ReachTrainingEnv(TwoPegOneRoundNut):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
+        self.horizon =128 # cannot be too short, will cause instability. 
+        
     # Override the reward function (please design it such that it favors reaching the goal)
     def reward(self, action=None):
         
@@ -134,8 +135,8 @@ if __name__ == "__main__":
     env = ReachTrainingEnv(
         robots="Panda",  # Use Panda robot
         gripper_types="default",
-        has_renderer=True,  # Enable visualization
-        has_offscreen_renderer=False,  # Disable offscreen rendering
+        has_renderer=False,  # Enable visualization
+        has_offscreen_renderer=True,  # Disable offscreen rendering
         use_camera_obs=False,  # Don't use camera observations
         reward_shaping=False,  # Enable reward shaping
     )
@@ -145,7 +146,7 @@ if __name__ == "__main__":
     total_timesteps = 88888
     save_freq = 8888
     save_path = os.path.dirname(os.path.abspath(__file__))
-    name_prefix = "ppo_panda_reach"
+    name_prefix = "ppo_panda_reach_20250323"
 
     # Initialize the checkpoint callback
     checkpoint_callback = CheckpointCallback(
@@ -156,7 +157,9 @@ if __name__ == "__main__":
     )
 
     # Define the model
-    model = PPO("MlpPolicy", env, verbose=1)
+    model = PPO("MlpPolicy", env, verbose=0,
+                seed= 8888, learning_rate=0.0003, batch_size = 64, 
+                n_epochs = 10, n_steps = 2048,) #do not decrease time step and batch size together.
 
     # Train the model
     model.learn(total_timesteps=total_timesteps, callback=checkpoint_callback)
