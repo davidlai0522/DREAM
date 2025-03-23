@@ -23,7 +23,11 @@ class MoveTrainingEnv(TwoPegOneRoundNut):
         super().__init__(**kwargs)
         self.target_peg_name = 'peg1'
         self.target_peg_id = self.sim.model.body_name2id(self.target_peg_name)
-        self.height_threshold = 0.1
+
+        self.original_peg_name = 'peg2'
+        self.original_peg_id = self.sim.model.body_name2id(self.original_peg_name)
+        
+        self.height_threshold = 0.05
         self.nut_angle_threshold = np.pi/10
         self.nut_to_target_peg_xy_dist_threshold = 0.05 / 2
     
@@ -38,11 +42,25 @@ class MoveTrainingEnv(TwoPegOneRoundNut):
 
         return np.array(self.sim.data.site_xpos[self.robots[0].eef_site_id["right"]])
 
+    @property
+    def _eef0_xmat(self):
+        """
+        Right End Effector 0 orientation as a rotation matrix
+        Note that this draws the orientation from the "ee" site, NOT the gripper site, since the gripper
+        orientations are inconsistent!
+
+        Returns:
+            np.array: (3,3) orientation matrix for EEF0
+        """
+        pf = self.robots[0].gripper["right"].naming_prefix
+        return np.array(self.sim.data.site_xmat[self.sim.model.site_name2id(pf + "grip_site")]).reshape(3, 3)
+
     def _reset_internal(self):
         """
         Resets the environment by setting the robot's hand to hold the nut.
         """
         ManipulationEnv._reset_internal(self)
+        print("reset internal")
 
         for _ in range(100):
             # Iteratively update the nut handle's position based on the position of the gripper
@@ -58,6 +76,19 @@ class MoveTrainingEnv(TwoPegOneRoundNut):
 
             # Take forward step
             self.sim.step()
+
+    #     print("===============================")
+    #     print("==========END OF RESET==========")
+    #     print(f'grasping status: {self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.nuts[0].contact_geoms)}')
+    #     print(f'nut position: {self.get_nut_pos()}')
+    #     print(f'nut handle position: {self.get_object_position(target = self.nuts[0].important_sites["handle"], target_type="site")}')
+    #     print(f'nut leaning angle: {self._nut_angle()}')
+    #     print(f'gripper position: {self.get_object_position(target = "gripper0_right_grip_site", target_type="site")}')
+    #     print(f'gripper position by eefo: {self._eef0_xpos}')
+    #     print(f'grasping status: {self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.nuts[0].contact_geoms)}')
+    #     print("===============================")
+    #     print("===============================")
+        
     
 
     def _nut_quat(self):
@@ -94,7 +125,6 @@ class MoveTrainingEnv(TwoPegOneRoundNut):
                 - (float) Height of table
                 - (ndarray) xyz position of nut
                 - (ndarray) xyz position of target peg
-                - (ndarray) xyz position of gripper tip
 
         """
         
@@ -109,13 +139,10 @@ class MoveTrainingEnv(TwoPegOneRoundNut):
         # xyz position of nut and target peg
         nut_xpos = np.array(self.sim.data.body_xpos[nut_id])[:3]
         target_peg_xpos = np.array(self.sim.data.body_xpos[self.target_peg_id])[:3]
-
-        # tip position
-        tip_xpos = self.get_gripper_tip_pos()
         
-        return grasped, table_height, nut_xpos, target_peg_xpos, tip_xpos
-    
-    
+        return grasped, table_height, nut_xpos, target_peg_xpos
+
+
     # Override the reward function (please design it such that it favors reaching the goal)
     def reward(self, action=None):
         """
@@ -131,42 +158,75 @@ class MoveTrainingEnv(TwoPegOneRoundNut):
 
         """
 
-        grasped, table_height, nut_xpos, target_peg_xpos, tip_xpos = self._get_task_info()
+        grasped, table_height, nut_xpos, target_peg_xpos = self._get_task_info()
+        #print(grasped, table_height, nut_xpos, target_peg_xpos)
         
+
         nut_height = nut_xpos[2]
         target_peg_height = target_peg_xpos[2]
 
-        if nut_height - target_peg_height > self.height_threshold:
-            reward = 1.0
-            # Add in up to 0.5 based on distance between handle and gripper
-            dist = np.linalg.norm(nut_xpos[:2] - target_peg_xpos[:2])
-            reaching_reward = 0.5 * (1 - np.tanh(1.0 * dist))
-            reward += reaching_reward
+        # print(f'nut leaning angle: {self._nut_angle()}')
+        # print(f'Nut height: {nut_height}, target peg height: {target_peg_height}')
+        # print(f'Nut xpos: {nut_xpos}, target peg xpos: {target_peg_xpos}')
 
-            # Add in up to 0.25 based on the angle of the nut
-            nut_angle_reward = self._nut_angle_reward(self._nut_angle())
-            reward += nut_angle_reward
+        # if nut_height - target_peg_height >= self.height_threshold:
+        #     reward = 1.0
+        #     # Add in up to 0.25 based on distance between handle and gripper
+        #     dist = np.linalg.norm(nut_xpos[:2] - target_peg_xpos[:2])
+        #     reaching_reward = 0.25 * (1 - np.tanh(1.0 * dist))
+        #     reward += reaching_reward
 
-        # the nut is not raised high enough, or not even being grasped
-        else:
-            # Split cases depending on whether arm0 is currently grasping the handle or not
-            if grasped:
-                reward = 0.5
-            else:
-                reward= 0.0
+        #     # # Add in up to 0.25 based on the angle of the nut
+        #     # nut_angle_reward = self._nut_angle_reward(self._nut_angle())
+        #     # reward += nut_angle_reward
 
-                # encourage arm0 to reach for the handle
-                dist = self.get_distance_from_gripper_to_nut_handle()
-                reaching_reward = 0.25 * (1 - np.tanh(1.0 * dist))
-                reward += reaching_reward
+        # # the nut is not raised high enough, or not even being grasped
+        # else:
+        #     # Split cases depending on whether arm0 is currently grasping the handle or not
+        #     if grasped:
+        #         reward = 0.75
+        #     else:
+        #         # encourage arm0 to reach for the handle
+        #         dist = np.linalg.norm(self.get_distance_from_gripper_to_nut_handle())
+        #         reaching_reward = 0.25 * (1 - np.tanh(1.0 * dist))
+        #         reward = reaching_reward
+        reward = 0
 
-                # Add orientation reward (if gripper approaching from above)
-                gripper_to_nut = nut_xpos - tip_xpos
-                gripper_to_nut = gripper_to_nut / np.linalg.norm(gripper_to_nut)
-                vertical_approach = np.dot(gripper_to_nut, np.array([0, 0, 1]))
-                reward += 0.5 * np.tanh(1.0 * vertical_approach)  # Reward vertical approach
         
+        target_pos = target_peg_xpos.copy()# slightly above the target peg
+        target_pos[2] = target_pos[2] + self.height_threshold
+        gripper_to_target_vec = self._eef0_xpos - target_pos
+
+        # distance
+        dist_to_target_peg = np.linalg.norm(gripper_to_target_vec)
+        reaching_reward = 1 - np.tanh(1.0 * dist_to_target_peg)
+
+        # orientation
+        orientation = np.dot(gripper_to_target_vec/np.linalg.norm(gripper_to_target_vec), np.array([0, 0, 1]))
+        ori_reward = 0.5 * np.tanh(1.0 * orientation)  # Reward horizontal approach
+
+        # Small penalty for large actions to encourage smooth motion
+        action_magnitude = np.linalg.norm(action[:-1]) if action is not None else 0
+        action_penalty = 0.25 * np.tanh(1.0 * action_magnitude)
+
         
+
+        # id = self.sim.model.body_name2id('gripper0_right_right_gripper')
+        # quat = T.convert_quat(self.sim.data.body_xquat[id], to="xyzw")
+        # mat = T.quat2mat(quat)
+        # z_unit = [0, 0, 1]
+        # z_rotated = np.matmul(mat, z_unit)
+        # angle = np.arccos(np.dot(z_unit, z_rotated))
+        # if self.timestep % 1000 == 0:
+        #     print('---------------------------------------')
+        #     print(f'gripper position = {self._eef0_xpos}')
+        #     print(f'target position = {target_pos}')
+        #     print(f'reaching reward = {reaching_reward}')
+        #     print(f'action penalty = {action_penalty}')
+        #     print(f'gripper angle = {angle}')
+        #     print('---------------------------------------')
+
+        reward = reaching_reward + ori_reward - action_penalty
         return reward
     
     def _nut_angle_reward(self, angle):
@@ -183,22 +243,17 @@ class MoveTrainingEnv(TwoPegOneRoundNut):
         """
         Always returns False to prevent the environment from terminating.
         """
-        _, _, nut_xpos, target_peg_xpos = self._get_task_info()
+        _, _, _, target_peg_xpos = self._get_task_info()
 
-        xy_dist_to_peg = np.linalg.norm(nut_xpos[:2] - target_peg_xpos[:2])
+        xy_dist_to_peg = np.linalg.norm(self._eef0_xpos[:2] - target_peg_xpos[:2])
 
-        nut_angle = self._nut_angle()
-        if nut_angle >= np.pi/2:
-            nut_angle = np.pi - nut_angle
-
-        if nut_angle < self.nut_angle_threshold \
-            and nut_xpos[2] > target_peg_xpos[2] \
-                and xy_dist_to_peg < self.nut_to_target_peg_xy_dist_threshold:
+        if xy_dist_to_peg < self.nut_to_target_peg_xy_dist_threshold and self._eef0_xpos[2] >= target_peg_xpos[2] + self.height_threshold:
             return True
         
         return False
 
 if __name__ == "__main__":
+    print("??")
     # Create environment instance
     env = MoveTrainingEnv(
         robots="Panda",  # Use Panda robot
