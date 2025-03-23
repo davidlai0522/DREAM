@@ -16,64 +16,120 @@ class ReachTrainingEnv(TwoPegOneRoundNut):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
+        self.horizon =128 # cannot be too short, will cause instability. 
+        
     # Override the reward function (please design it such that it favors reaching the goal)
     def reward(self, action=None):
         
-        # """
-        # Reward function focused specifically on reaching the nut.
-        # """
-        nut_id = self.sim.model.body_name2id('RoundNut_main')
-        nut_pos = self.sim.data.body_xpos[nut_id]
-        handle_pos = self.sim.data.get_site_xpos('RoundNut_handle_site')
+        # Get positions of nut handle and gripper tips
+        nut_handle_name = self.nuts[0].important_sites['handle']
+        nut_handle_id = self.sim.model.site_name2id(nut_handle_name)
+        nut_handle_pos = self.sim.data.site_xpos[nut_handle_id]
+        nut_pos = np.mean([nut_handle_pos], axis=0)
         
         tip1_id = self.sim.model.body_name2id('gripper0_right_finger_joint1_tip')
-        # tip1_id = self.sim.model.body_name2id( 'gripper0_right_leftfinger') #seems to be the rectangular thingy; failed
         tip1_pos = self.sim.data.body_xpos[tip1_id]
-        
         tip2_id = self.sim.model.body_name2id('gripper0_right_finger_joint2_tip')
-        # tip2_id = self.sim.model.body_name2id('gripper0_right_rightfinger') #seems to be the rectangular thingy; failed
         tip2_pos = self.sim.data.body_xpos[tip2_id]
+        tip_center = np.mean(np.array([tip1_pos, tip2_pos]), axis=0)
         
-        tip_pos = np.mean(np.array([tip1_pos, tip2_pos]), axis = 0)
-
-        # ---- REACHING REWARD COMPONENT ----        
-        # Base reward is inverse to distance (higher as gripper gets closer)
-        # Using a scaled inverse distance function for smooth gradient
-        dist_gripper_to_nut = np.linalg.norm(tip_pos - handle_pos)
-        reach_reward = 1.0 / (1.0 + 5.0 * dist_gripper_to_nut)
+        # Core geometric calculations
+        gripper_to_nut = nut_pos - tip_center
+        dist_gripper_to_nut = np.linalg.norm(gripper_to_nut)
+        gripper_axis = tip2_pos[:2] - tip1_pos[:2]
+        gripper_width = np.linalg.norm(gripper_axis)
+        gripper_axis_norm = gripper_axis / (gripper_width + 1e-6)
         
-        # Bonus rewards for getting very close
-        if dist_gripper_to_nut < 0.08:
-            reach_reward += 0.5  # Small bonus for getting close
+        # ===== NORMALIZED REWARD COMPONENTS =====
+        
+        # 1. Reach reward - base distance component
+        reach_reward = 20 / (1 + 18 * dist_gripper_to_nut)
+        if dist_gripper_to_nut <= 0.15: reach_reward += 0.2
+        if dist_gripper_to_nut <= 0.10: reach_reward += 0.8
+        if dist_gripper_to_nut <= 0.05: reach_reward += 1.8
+        if dist_gripper_to_nut <= 0.02: reach_reward += 2.5
             
-        if dist_gripper_to_nut < 0.04:
-            reach_reward += 1.0  # Larger bonus for getting very close
-            
-        if dist_gripper_to_nut < 0.02:
-            reach_reward += 2.0  # Significant bonus for nearly touching
-
-        # ---- ORIENTATION REWARD COMPONENT ----        
-        # Add orientation reward (if gripper approaching from above)
-        gripper_to_nut = handle_pos - tip_pos
+        # 3. Alignment reward - perpendicular distance to gripper axis
+        dist_tip1_to_nut = np.linalg.norm(nut_pos - tip1_pos)
+        dist_tip2_to_nut = np.linalg.norm(nut_pos - tip2_pos)
+        alignment_diff = abs((dist_tip1_to_nut / dist_tip2_to_nut) - 1)
+        alignment_reward = 1 * np.exp(10 * -alignment_diff)
+        
+        # 4. Gripper orientation reward - keep fingers level
+        
+        height_diff = abs(tip1_pos[2] - tip2_pos[2])
+        parallel_reward = 1 * np.exp(10 * -height_diff)
+        width_reward = 1 * np.exp(10 * gripper_width)
+        
+        # Add vertical reward (if gripper approaching from above)
+        gripper_to_nut = nut_pos - tip_center
         gripper_to_nut = gripper_to_nut / np.linalg.norm(gripper_to_nut)
         vertical_approach = np.dot(gripper_to_nut, np.array([0, 0, 1]))
-        ori_reward = 0.5 * max(0, vertical_approach)  # Reward vertical approach
+        vertical_reward = 0.5 * max(0, vertical_approach)  # Reward vertical approach
+        
+        # 6. Action efficiency - encourage smooth motions
+        if hasattr(self, 'previous_action'):
+            action_diff = np.linalg.norm(action - self.previous_action)
+            action_penalty = 0.2 * action_diff  # Penalize large changes
+        else: action_penalty = 0
+        self.previous_action = action
+        
+        total_reward = (reach_reward +
+                        alignment_reward + 
+                        vertical_reward + 
+                        parallel_reward + 
+                        width_reward -
+                        action_penalty
+                       )
 
-        # ---- OPEN GRIPPER REWARD COMPONENT ----
-        # Reward keeping the gripper open - scales with openness
-        fingertip_distance = np.linalg.norm(tip1_pos - tip2_pos)
-        open_gripper_reward = 2.0 * fingertip_distance
+        if ((dist_gripper_to_nut <= 0.01) & 
+            (alignment_diff <= 0.08) & 
+            (height_diff <= 0.03) & 
+            (gripper_width >= 0.07)
+           ):
+            total_reward = total_reward + 88
 
-        # ---- ACTION EFFICIENCY COMPONENT ----
-        # Small penalty for large actions to encourage smooth motion
-        action_magnitude = np.linalg.norm(action) if action is not None else 0
-        action_penalty = 0.05 * action_magnitude
+        if (gripper_width < 0.07):
+            total_reward =  0
+         
+        self.dist_gripper_to_nut = dist_gripper_to_nut
+        self.alignment_diff = alignment_diff
+        self.height_diff = height_diff
+        self.gripper_width = gripper_width
+        
+        return total_reward
 
-        # ---- FINAL REWARD CALCULATION ----
-        # Final reward
-        reward = reach_reward + ori_reward + open_gripper_reward - action_penalty
-        return reward
+    def _check_success(self):
+        # to call this, use env.unwrapped._check_success()
+
+        # Get positions of nut handle and gripper tips
+        nut_handle_name = self.nuts[0].important_sites['handle']
+        nut_handle_id = self.sim.model.site_name2id(nut_handle_name)
+        nut_handle_pos = self.sim.data.site_xpos[nut_handle_id]
+        nut_pos = np.mean([nut_handle_pos], axis=0)
+        
+        tip1_id = self.sim.model.body_name2id('gripper0_right_finger_joint1_tip')
+        tip1_pos = self.sim.data.body_xpos[tip1_id]
+        tip2_id = self.sim.model.body_name2id('gripper0_right_finger_joint2_tip')
+        tip2_pos = self.sim.data.body_xpos[tip2_id]
+        tip_center = np.mean(np.array([tip1_pos, tip2_pos]), axis=0)
+        
+        # Core geometric calculations
+        gripper_to_nut = nut_pos - tip_center
+        dist_gripper_to_nut = np.linalg.norm(gripper_to_nut)
+        gripper_axis = tip2_pos[:2] - tip1_pos[:2]
+        gripper_width = np.linalg.norm(gripper_axis)
+
+        dist_tip1_to_nut = np.linalg.norm(nut_pos - tip1_pos)
+        dist_tip2_to_nut = np.linalg.norm(nut_pos - tip2_pos)
+        alignment_diff = abs((dist_tip1_to_nut / dist_tip2_to_nut) - 1)
+
+        height_diff = abs(tip1_pos[2] - tip2_pos[2])
+
+        if ((dist_gripper_to_nut <= 0.01) & (alignment_diff <= 1.5) & (height_diff <= 0.1) & (gripper_width >= 0.07)):
+            return True
+            
+        return False
 
 if __name__ == "__main__":
     # Create environment instance
@@ -81,7 +137,7 @@ if __name__ == "__main__":
         robots="Panda",  # Use Panda robot
         gripper_types="default",
         has_renderer=False,  # Enable visualization
-        has_offscreen_renderer=False,  # Disable offscreen rendering
+        has_offscreen_renderer=True,  # Disable offscreen rendering
         use_camera_obs=False,  # Don't use camera observations
         reward_shaping=False,  # Enable reward shaping
     )
@@ -91,7 +147,7 @@ if __name__ == "__main__":
     total_timesteps = 88888
     save_freq = 8888
     save_path = os.path.dirname(os.path.abspath(__file__))
-    name_prefix = "ppo_panda_reach"
+    name_prefix = "ppo_panda_reach_20250323"
 
     # Initialize the checkpoint callback
     checkpoint_callback = CheckpointCallback(
@@ -102,7 +158,9 @@ if __name__ == "__main__":
     )
 
     # Define the model
-    model = PPO("MlpPolicy", env, verbose=1)
+    model = PPO("MlpPolicy", env, verbose=0,
+                seed= 8888, learning_rate=0.0003, batch_size = 64, 
+                n_epochs = 10, n_steps = 2048,) #do not decrease time step and batch size together.
 
     # Train the model
     model.learn(total_timesteps=total_timesteps, callback=checkpoint_callback)
