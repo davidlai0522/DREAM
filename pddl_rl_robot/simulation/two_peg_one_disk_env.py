@@ -1,4 +1,4 @@
-from pddl_rl_robot.simulation.peg_and_hole_base_env import NutAssembly, PegsArena
+from pddl_rl_robot.simulation.peg_and_hole_base_env import NutAssembly, PegsArena, RoundNutObject
 from robosuite.utils.placement_samplers import (
     SequentialCompositeSampler,
     UniformRandomSampler,
@@ -6,7 +6,6 @@ from robosuite.utils.placement_samplers import (
 from robosuite.environments.manipulation.manipulation_env import ManipulationEnv
 from robosuite.models.tasks import ManipulationTask
 from robosuite.models.base import MujocoModel
-from robosuite.models.objects import RoundNutObject
 import numpy as np
 from pddl_rl_robot.utils.utils import quat2euler
 

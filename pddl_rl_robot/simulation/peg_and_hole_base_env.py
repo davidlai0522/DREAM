@@ -5,10 +5,41 @@ from collections import OrderedDict
 from robosuite.models.arenas import TableArena
 import robosuite.utils.transform_utils as T
 from robosuite.environments.manipulation.manipulation_env import ManipulationEnv
-from robosuite.models.objects import RoundNutObject
 from robosuite.models.tasks import ManipulationTask
 from robosuite.utils.observables import Observable, sensor
 from robosuite.utils.placement_samplers import SequentialCompositeSampler, UniformRandomSampler
+
+from robosuite.models.objects import MujocoXMLObject
+from robosuite.utils.mjcf_utils import array_to_string, find_elements, xml_path_completion
+import os
+
+class RoundNutObject(MujocoXMLObject):
+    """
+    Round nut (used in NutAssembly)
+    """
+
+    def __init__(self, name):
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        super().__init__(
+            xml_path_completion(os.path.join(parent_dir, "round-nut.xml")),
+            name=name,
+            joints=[dict(type="free", damping="0.0005")],
+            obj_type="all",
+            duplicate_collision_geoms=True,
+        )
+
+    @property
+    def important_sites(self):
+        """
+        Returns:
+            dict: In addition to any default sites for this object, also provides the following entries
+
+                :`'handle'`: Name of nut handle location site
+        """
+        # Get dict from super call and add to it
+        dic = super().important_sites
+        dic.update({"handle": self.naming_prefix + "handle_site"})
+        return dic
 
 
 class PegsArena(TableArena):

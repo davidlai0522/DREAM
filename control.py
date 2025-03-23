@@ -1,7 +1,7 @@
 import time
 from pddl_rl_robot.simulation.two_peg_one_disk_env import TwoPegOneRoundNut
 import numpy as np
-from robot_controller import RobotController
+from pddl_rl_robot.simulation.robot_controller import RobotController
 
 if __name__ == "__main__":
     # Create environment instance

@@ -106,6 +106,8 @@ def main():
     previous_action = None
     
     for idx, step in enumerate(plan):
+        if step == 'move(robot1, peg2, peg1)':
+            continue
         step = step.split()
         action = step[0].split("(")[0]
         parameters = step[1:]

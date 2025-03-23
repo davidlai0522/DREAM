@@ -4,7 +4,7 @@ pddl:
   problem_file: problem_base.pddl
   
 deterministic:
-  actions: ["clasp-disk"]
+  actions: ["clasp-disk", "lift-disk-from-peg"]
 
   clasp-disk:
     class: GraspAction
@@ -12,17 +12,18 @@ deterministic:
 
   lift-disk-from-peg:
     class: LiftAction
+    max_step: 20
 
 reinforcement_learning: 
-  agents: ["reach-toward-disk-on-peg", "lift-disk-from-peg"]
+  agents: ["move", "reach-toward-disk-on-peg"]
 
   move:
-    model: model.zip
+    model: pddl_rl_robot/rl/move_action/no_nuts/ppo_panda_move_no_nuts_20250323_170533_100000.zip
     algorithm: ppo
     environment: move_env
     
   reach-toward-disk-on-peg:
-    model: pddl_rl_robot/rl/reach_action/ppo_panda_reach_20250322_155741_88888.zip
+    model: pddl_rl_robot/rl/reach_action/ppo_panda_reach_20250323_62216_steps_OKK.zip
     algorithm: ppo
     environment: reach_env
     max_step: 500

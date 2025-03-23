@@ -243,11 +243,12 @@ class RobotController:
         
         self.set_joint_positions(positions)
     
-    def step_simulation(self):
+    def step_simulation(self, action=None):
         """
         Step the simulation forward with a zero action.
         """
-        action = np.zeros(self.action_dim)
+        if action is None:
+            action = np.zeros(self.action_dim)
         self.env.step(action)
     
     def print_robot_info(self):
@@ -312,6 +313,7 @@ class RobotController:
         
         # Apply the action
         self.env.step(action)
+        return action
     
     def compute_inverse_kinematics(self, target_position, target_orientation=None):
         """
@@ -457,13 +459,14 @@ class RobotController:
         new_eef_position = self.get_eef_position()
         final_error = np.linalg.norm(target_position - new_eef_position)
         
-        # Print info less frequently to avoid console spam
-        if np.random.random() < 0.05:  # Only print ~5% of the time
-            print(f"Moving to target position: {target_position}")
-            print(f"Current position: {new_eef_position}")
-            print(f"Position error: {final_error}")
+        # # Print info less frequently to avoid console spam
+        # if np.random.random() < 0.05:  # Only print ~5% of the time
+        #     print(f"Moving to target position: {target_position}")
+        #     print(f"Current position: {new_eef_position}")
+        #     print(f"Position error: {final_error}")
         
-        return final_error < 0.1  # Consider it successful if within 10cm
+        # return final_error < 0.1  # Consider it successful if within 10cm
+        return action
     
     def set_orientation(self, target_orientation):
         """
