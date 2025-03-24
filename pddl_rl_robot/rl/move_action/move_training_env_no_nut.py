@@ -43,19 +43,6 @@ class MoveTrainingEnv_no_nut(TwoPegOneRoundNut):
 
         return np.array(self.sim.data.site_xpos[self.robots[0].eef_site_id["right"]])
 
-    @property
-    def _eef0_xmat(self):
-        """
-        Right End Effector 0 orientation as a rotation matrix
-        Note that this draws the orientation from the "ee" site, NOT the gripper site, since the gripper
-        orientations are inconsistent!
-
-        Returns:
-            np.array: (3,3) orientation matrix for EEF0
-        """
-        pf = self.robots[0].gripper["right"].naming_prefix
-        return np.array(self.sim.data.site_xmat[self.sim.model.site_name2id(pf + "grip_site")]).reshape(3, 3)
-
     def _reset_internal(self):
         """
         Resets the environment by setting the robot's hand to hold the nut.

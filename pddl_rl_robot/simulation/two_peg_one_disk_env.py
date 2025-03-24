@@ -145,6 +145,17 @@ class TwoPegOneRoundNut(NutAssembly):
         """
         return False
 
+    @property
+    def _eef0_xpos(self):
+        """
+        Grab the position of Robot 0's right end effector.
+
+        Returns:
+            np.array: (x,y,z) position of EEF0
+        """
+
+        return np.array(self.sim.data.site_xpos[self.robots[0].eef_site_id["right"]])
+    
     def get_available_body_names(self):
         return self.sim.model.body_names
 
