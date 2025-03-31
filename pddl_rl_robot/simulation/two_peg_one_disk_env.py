@@ -1,4 +1,4 @@
-from pddl_rl_robot.simulation.peg_and_hole_base_env import NutAssembly, PegsArena
+from pddl_rl_robot.simulation.peg_and_hole_base_env import NutAssembly, PegsArena, RoundNutObject
 from robosuite.utils.placement_samplers import (
     SequentialCompositeSampler,
     UniformRandomSampler,
@@ -6,9 +6,9 @@ from robosuite.utils.placement_samplers import (
 from robosuite.environments.manipulation.manipulation_env import ManipulationEnv
 from robosuite.models.tasks import ManipulationTask
 from robosuite.models.base import MujocoModel
-from robosuite.models.objects import RoundNutObject
 import numpy as np
 from pddl_rl_robot.utils.utils import quat2euler
+
 
 class TwoPegOneRoundNut(NutAssembly):
     """
@@ -58,9 +58,9 @@ class TwoPegOneRoundNut(NutAssembly):
             self.placement_initializer.append_sampler(
                 sampler=UniformRandomSampler(
                     name="RoundNutSampler",
-                        x_range=[0.07, 0.09],
-                        y_range=[-0.11, -0.09],
-                        rotation=[3.0, 3.28],
+                    x_range=[0.07, 0.09],
+                    y_range=[-0.11, -0.09],
+                    rotation=[3.0, 3.28],
                     rotation_axis="z",
                     ensure_object_boundary_in_range=False,
                     ensure_valid_placement=True,
@@ -82,7 +82,9 @@ class TwoPegOneRoundNut(NutAssembly):
             # Add this nut to the placement initializer
             if isinstance(self.placement_initializer, SequentialCompositeSampler):
                 # assumes we have two samplers so we add nuts to them
-                self.placement_initializer.add_objects_to_sampler(sampler_name=f"{nut_name}Sampler", mujoco_objects=nut)
+                self.placement_initializer.add_objects_to_sampler(
+                    sampler_name=f"{nut_name}Sampler", mujoco_objects=nut
+                )
             else:
                 # This is assumed to be a flat sampler, so we just add all nuts to this sampler
                 self.placement_initializer.add_objects(nut)
@@ -125,6 +127,21 @@ class TwoPegOneRoundNut(NutAssembly):
                 # Set all of these sensors to be enabled and active if this is the active nut, else False
                 self._observables[name].set_enabled(i == self.nut_id)
                 self._observables[name].set_active(i == self.nut_id)
+                
+        # # Set the robot joint positions to a default configuration
+        # init_qpos = self.sim.data.qpos.copy()
+        # init_qvel = self.sim.data.qvel.copy()
+        
+        # # Set robot arm to a neutral position
+        # for i, robot in enumerate(self.robots):
+        #     robot_joint_indices = robot.init_qpos_indices
+        #     init_qpos[robot_joint_indices] = robot.init_qpos
+            
+        # # Apply the joint positions and velocities
+        # self.sim.data.qpos[:] = init_qpos
+        # self.sim.data.qvel[:] = init_qvel
+        # self.sim.forward()
+        
 
     def reward(self, action=None):
         """
@@ -164,7 +181,12 @@ class TwoPegOneRoundNut(NutAssembly):
         nut_pos = self.sim.data.body_xpos[nut_id]
         return nut_pos
 
-    def get_nut_ori(self, name: str = "RoundNut_main", representation: str = "quat", use_degree: bool = False):
+    def get_nut_ori(
+        self,
+        name: str = "RoundNut_main",
+        representation: str = "quat",
+        use_degree: bool = False,
+    ):
         nut_id = self.sim.model.body_name2id(name)
         nut_ori = self.sim.data.body_xquat[nut_id]
         if representation == "quat":
@@ -179,7 +201,12 @@ class TwoPegOneRoundNut(NutAssembly):
         tip_pos = self.sim.data.body_xpos[tip_id]
         return tip_pos
 
-    def get_gripper_tip_ori(self, name: str = "gripper0_right_finger_joint1_tip", representation: str = "quat", use_degree: bool = False):
+    def get_gripper_tip_ori(
+        self,
+        name: str = "gripper0_right_finger_joint1_tip",
+        representation: str = "quat",
+        use_degree: bool = False,
+    ):
         tip_id = self.sim.model.body_name2id(name)
         tip_ori = self.sim.data.body_xquat[tip_id]
         if representation == "quat":

@@ -32,7 +32,7 @@ class PlaceTrainingEnv(TwoPegOneRoundNut):
         z_target = 0.8 #table_pos[2]+0.125  #target height for lift is 0.95, target height for place is 0.8
         dists = abs(z_target-gripper_pos[2]) #distance from target height
         reward = 1.0 / (1.0 + 10 * dists)
-        print(z_target, gripper_pos[2], reward)
+        # print(z_target, gripper_pos[2], reward)
         return reward
 
      # override post action to check if the episode is done (reward near target)
@@ -63,7 +63,7 @@ class PlaceTrainingEnv(TwoPegOneRoundNut):
         action[2] = z_action    #restrict action to z axis
         action[6] = 1           #gripper closed
         #Clip the action to the restricted bounds
-        action = np.clip(action, env.action_space.low, env.action_space.high)
+        action = np.clip(action, self.action_spec[0], self.action_spec[1])
         if self.done:
             raise ValueError("executing action in terminated episode")
 
