@@ -10,4 +10,5 @@ pyaml
 h5py
 pybullet
 termcolor
+unified_planning
 stable-baselines3[extra]

@@ -6,10 +6,11 @@ import numpy as np
 from termcolor import colored
 import os
 import json
-from pddl_rl_robot.simulation.two_peg_one_disk_env import TwoPegOneRoundNut
 from pddl_rl_robot.rl.inference import RLModelInference
 from pddl_rl_robot.deterministic.grasp_action import GraspAction
 from pddl_rl_robot.deterministic.lift_action import LiftAction
+from pddl_rl_robot.deterministic.place_action import PlaceAction
+from pddl_rl_robot.simulation.robot_controller import RobotController
 
 """
 This script is the main entry point for the PDDL-RL robot system. The system
@@ -32,7 +33,8 @@ The main flow of this script is as follows:
 
 DETERMINISTIC_ACTIONS = {
     "clasp-disk": GraspAction,
-    "lift-disk-from-peg": LiftAction
+    "lift-disk-from-peg": LiftAction,
+    "place-disk-on-empty-peg": PlaceAction
 }
 PARENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -145,7 +147,7 @@ def main():
         
         print(
             colored(
-                f"Executing action {idx+1}: \033[1m{action}\033[0m with parameters: {parameters} (Type: {'Deterministic' if action_type == ActionType.DETERMINISTIC else 'Reinforcement Learning' if action_type == ActionType.REINFORCEMENT_LEARNING else 'Unknown'})",
+                f"Executing action {idx}: \033[1m{action}\033[0m with parameters: {parameters} (Type: {'Deterministic' if action_type == ActionType.DETERMINISTIC else 'Reinforcement Learning' if action_type == ActionType.REINFORCEMENT_LEARNING else 'Unknown'})",
                 "green",
             )
         )
@@ -153,6 +155,9 @@ def main():
         # -------------------------------------------------------------------
         # Execute the action
         # -------------------------------------------------------------------
+        action_name = action
+        controller = RobotController(simulation.env)
+
         try:
             num_step = NUM_STEP
             if agent_config.get("max_step"):
@@ -164,12 +169,19 @@ def main():
                     action = deterministic_action.perform(obs)
                 elif action_type == ActionType.REINFORCEMENT_LEARNING:
                     action, _ = policy_inference.model.predict(obs, deterministic=True)
+                    if action_name == "move":
+                        # controller.attach_object_to_eef("RoundNut")
+                        action[-1] = 0.0
                     
                 obs, reward, done, _, _ = simulation.step(action)
                 previous_action = action
-
+                
                 # Render the environment
                 simulation.render()
+                if action_name != "move":
+                    time.sleep(0.08)
+                else:
+                    time.sleep(0.008)
                 
                 # Check if the episode is done
                 if done:
@@ -179,10 +191,38 @@ def main():
             print("Interrupted by user.")
         except Exception as e:
             print(colored(f"Error: {e}", "red"))
+            
+        if action_name == "move":
+            # controller.attach_object_to_eef("RoundNut")
+            for _ in range (200):
+                controller.move_to_position(np.array([0.015, 0.06, 1.0]))
+                # controller.attach_object_to_eef("RoundNut")
+                controller.step_simulation()
+                # Render the environment
+                simulation.render()
+                time.sleep(0.008)
+            time.sleep(3)  # Pause for 3 seconds before continuing to the next action
+            
         print("=" * 50)
 
     print("Done.")
-
+        
+    # Apply a downward force to the RoundNut
+    if action_name == "place":
+        # Apply downward force for several steps to ensure proper placement
+        for _ in range(50):
+            # Get the RoundNut object ID
+            nut_id = simulation.env.sim.model.geom_name2id("RoundNut")
+            if nut_id != -1:
+                # Apply downward force in the negative z direction
+                force = np.array([0.0, 0.0, -5.0])  # Adjust force magnitude as needed
+                simulation.env.sim.data.xfrc_applied[nut_id, :3] = force
+                simulation.step(simulation.get_no_action())
+                simulation.render()
+                time.sleep(0.01)
+        # Reset forces after application
+        simulation.env.sim.data.xfrc_applied.fill(0.0)
+    
     # STEP 10: Finish
     simulation.close()
     exit()

@@ -2,7 +2,7 @@ import numpy as np
 from pddl_rl_robot.deterministic.deterministic_base_class import DeterministicBaseClass
 from pddl_rl_robot.simulation.robot_controller import RobotController
 
-class GraspAction(DeterministicBaseClass):
+class PlaceAction(DeterministicBaseClass):
     """
     Deterministic action to close the gripper.
     
@@ -27,5 +27,4 @@ class GraspAction(DeterministicBaseClass):
         Returns:
             action: An action vector with zeros for arm movement and gripper close command
         """
-        self.controller.attach_object_to_eef("RoundNut", offset=np.array([0.05, 0.0, 0.02]))
-        return self.controller.set_gripper(0.01) # Close gripper
+        return self.controller.set_gripper(-0.01) # Close gripper
