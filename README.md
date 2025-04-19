@@ -49,19 +49,28 @@ python3 main.py # For final integration
 pddl_rl_robot/
 ├── config/                 # Configuration files
 │   └── project_config.yaml # Main configuration
-├── examples/               # Example scripts
+│   └── domain.pddl         # PDDL domain definition
+│   └── problem.pddl        # PDDL problem definition
+├── examples/               # Example scripts and usage demonstrations
 ├── pddl_rl_robot/          # Main package
+│   ├── deterministic/      # Deterministic policy
 │   ├── pddl/               # PDDL parsing and solving
 │   ├── rl/                 # RL policy management
-│   └── simulation/         # Simulation of environments
+│   ├── simulation/         # Simulation of environments
+│   └── utils/              # General utility functions
 ├── requirements.txt        # Dependencies
-└── README.md               # This file
-├── main.py                 # Main entry point
+├── README.md               # Project documentation
+├── main.py                 # Main entry point for integration
 ```
+
+# Demo
+Click the image below to watch a demo of the DREAM framework in action.
+[![DREAM Demo](https://img.youtube.com/vi/HSHSuAT0FLc/0.jpg)](https://youtu.be/HSHSuAT0FLc)
+
 
 ## Maintainer
 
-- Joseph Phang
-- Edward Xiao
-- David Lai
-- Toh Hoon Chew
+- [Joseph Phang](https://github.com/PDYJJJ)
+- [Edward Xiao](https://github.com/yxiaoaz)
+- [David Lai](https://github.com/davidlai0522)
+- [Toh Hoon Chew](https://github.com/hoonchew)
