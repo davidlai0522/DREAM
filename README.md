@@ -1,4 +1,4 @@
-# PDDL-RL Robot
+# DREAM ​- Domain Reasoning with Reinforcement ​for Effective Arm Manipulation​
 
 A Python package that integrates PDDL (Planning Domain Definition Language) task planning with reinforcement learning for robotic control and execution. This is a coursework project for CS5446 AI Planning and Decision Making.
 
